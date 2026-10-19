@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#0c1015" />
+    <title>Orbitals — Electron distributions</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="style.css" />
+    <script type="importmap">
+      {
+        "imports": {
+          "three": "https://cdn.jsdelivr.net/npm/three@0.161.0/build/three.module.js",
+          "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.161.0/examples/jsm/"
+        }
+      }
+    </script>
+    <script type="module" src="script.js"></script>
+  </head>
+  <body>
+    <main class="app-shell">
+      <section class="workspace">
+        <aside class="element-panel" id="element-panel">
+          <div class="panel-head">
+            <div class="eyebrow">Element index</div>
+            <button class="icon-button" id="collapse-table" type="button" aria-label="Collapse periodic table">←</button>
+          </div>
+          <div class="selected-element" id="selected-element" role="button" tabindex="0" aria-label="Expand periodic table">
+            <span class="selected-number" id="selected-number">6</span>
+            <strong id="selected-symbol">C</strong>
+            <span id="selected-name">Carbon</span>
+            <small id="selected-mass">12.011 u</small>
+          </div>
+          <div class="table-wrap" id="table-wrap">
+            <div class="table-legend">
+              <span><i class="legend-dot s"></i>s-block</span>
+              <span><i class="legend-dot p"></i>p-block</span>
+              <span><i class="legend-dot d"></i>d-block</span>
+              <span><i class="legend-dot f"></i>f-block</span>
+            </div>
+            <div class="periodic-table" id="periodic-table"></div>
+            <p class="table-hint">Hover to inspect · click to observe</p>
+          </div>
+        </aside>
+
+        <section class="visual-stage">
+          <div class="stage-toolbar">
+            <div>
+              <div class="eyebrow">Orbital studio <span class="status-dot"></span> live model</div>
+              <h1 id="stage-title">Carbon <span>/</span> C</h1>
+            </div>
+            <div class="stage-meta">
+              <span id="electron-count">06 electrons</span>
+              <span class="separator">·</span>
+              <span id="configuration">[He] 2s² 2p²</span>
+            </div>
+          </div>
+          <div class="model-row">
+            <section class="orbitals-panel card">
+              <div class="section-heading">
+                <div>
+                  <div class="eyebrow">Visibility</div>
+                  <h2>Orbitals</h2>
+                </div>
+                <span class="count-badge" id="orbital-count">0 active</span>
+              </div>
+              <div class="quick-actions">
+                <button class="text-button" id="show-all" type="button">Show all</button>
+                <button class="text-button muted" id="hide-all" type="button">Hide all</button>
+              </div>
+              <div class="orbital-list" id="orbital-list"></div>
+              <div class="opacity-control">
+                <div class="control-label"><span>Orbital opacity</span><output id="opacity-output">42%</output></div>
+                <input id="opacity-slider" type="range" min="0.12" max="0.9" value="0.42" step="0.01" />
+              </div>
+            </section>
+
+            <section class="viewport-card card">
+              <div id="viewport" aria-label="Interactive 3D electron orbital viewport">
+                <div class="viewport-grid"></div>
+                <div class="viewport-controls top-left">
+                  <button class="viewport-button active" id="spin-toggle" type="button">◎ <span>Spin</span></button>
+                  <button class="viewport-button" id="play-toggle" type="button">▶ <span>Play</span></button>
+                  <button class="viewport-button" id="speed-toggle" type="button">1×</button>
+                </div>
+                <button class="viewport-button reset-button" id="reset-camera" type="button">↺ <span>Reset view</span></button>
+                <div class="viewport-label"><span class="axis-key x"></span>X <span class="axis-key y"></span>Y <span class="axis-key z"></span>Z</div>
+                <div class="loading-state" id="loading-state">Loading orbital library<span class="loading-bar"></span></div>
+              </div>
+              <div class="viewport-caption">
+                <span><b>Drag</b> orbit · <b>Middle drag</b> pan · <b>Scroll</b> zoom</span>
+                <span id="view-state">Perspective / free camera</span>
+              </div>
+            </section>
+          </div>
+
+          <section class="pes-card card">
+            <div class="section-heading">
+              <div>
+                <div class="eyebrow">Photoelectron spectroscopy</div>
+                <h2>Energy distribution</h2>
+              </div>
+              <div class="pes-legend"><span><i class="legend-line blue"></i>Binding energy</span><span><i class="legend-line orange"></i>Relative intensity</span></div>
+            </div>
+            <div class="pes-chart" id="pes-chart">
+              <div class="chart-y-label">INTENSITY</div>
+              <div class="chart-x-label">BINDING ENERGY (eV) →</div>
+            </div>
+          </section>
+        </section>
+      </section>
+      <footer>Orbitals <span>·</span> an interactive chemistry field guide <span>·</span> Made by Rohan Inampudi, 2026</footer>
+    </main>
+  </body>
+</html>
