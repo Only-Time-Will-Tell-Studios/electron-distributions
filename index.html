@@ -21,7 +21,7 @@
   </head>
   <body>
     <main class="app-shell">
-      <section class="workspace">
+      <section class="workspace table-expanded" id="workspace">
         <aside class="element-panel" id="element-panel">
           <div class="panel-head">
             <div class="eyebrow">Element index</div>
@@ -96,19 +96,19 @@
             </section>
           </div>
 
-          <section class="pes-card card">
-            <div class="section-heading">
-              <div>
-                <div class="eyebrow">Photoelectron spectroscopy</div>
-                <h2>Energy distribution</h2>
-              </div>
-              <div class="pes-legend"><span><i class="legend-line blue"></i>Binding energy</span><span><i class="legend-line orange"></i>Relative intensity</span></div>
+        </section>
+        <section class="pes-card card">
+          <div class="section-heading">
+            <div>
+              <div class="eyebrow">Photoelectron spectroscopy</div>
+              <h2>Energy distribution</h2>
             </div>
-            <div class="pes-chart" id="pes-chart">
-              <div class="chart-y-label">INTENSITY</div>
-              <div class="chart-x-label">BINDING ENERGY (eV) →</div>
-            </div>
-          </section>
+            <div class="pes-legend"><span><i class="legend-line blue"></i>Binding energy</span><span><i class="legend-line orange"></i>Relative intensity</span></div>
+          </div>
+          <div class="pes-chart" id="pes-chart">
+            <div class="chart-y-label">INTENSITY</div>
+            <div class="chart-x-label">BINDING ENERGY (eV) · decreasing →</div>
+          </div>
         </section>
       </section>
       <footer>Orbitals <span>·</span> an interactive chemistry field guide <span>·</span> Made by Rohan Inampudi, 2026</footer>

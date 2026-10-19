@@ -16,6 +16,14 @@ const elements = [
 
 const orbitalFiles = { s: ["s_s"], p: ["p_px", "p_py", "p_pz"], d: ["d_dz2", "d_dxz", "d_dyz", "d_dxy", "d_dx2-y2"], f: ["f_fz3", "f_fxz2", "f_fyz2", "f_fxyz", "f_fx_x2-3y2", "f_fy_3x2-y2", "f_fz_x2-y2"] };
 const orbitalLabels = { s: ["s"], p: ["pₓ", "pᵧ", "p_z"], d: ["dᶻ²", "dˣᶻ", "dʸᶻ", "dˣʸ", "dˣ²₋ᵧ²"], f: ["fᶻ³", "fˣᶻ²", "fʸᶻ²", "fˣʸᶻ", "fˣ(x²−3y²)", "fʸ(3x²−y²)", "fᶻ(x²−y²)"] };
+const nobleGasCoreConfigurations = {
+  He: "1s2",
+  Ne: "1s2 2s2 2p6",
+  Ar: "1s2 2s2 2p6 3s2 3p6",
+  Kr: "1s2 2s2 2p6 3s2 3p6 4s2 3d10 4p6",
+  Xe: "1s2 2s2 2p6 3s2 3p6 4s2 3d10 4p6 5s2 4d10 5p6",
+  Rn: "1s2 2s2 2p6 3s2 3p6 4s2 3d10 4p6 5s2 4d10 5p6 6s2 4f14 5d10 6p6"
+};
 const categoryStyles = { alkali: ["#201d18","#ff9a55"], alkaline: ["#1b2424","#72d9b0"], transition: ["#1b2030","#9d9cff"], post: ["#20252a","#8fa8bd"], metalloid: ["#202327","#ffca75"], nonmetal: ["#152632","#54a9ff"], halogen: ["#231e2c","#d09cff"], noble: ["#24212b","#ed9fc8"], lanth: ["#19282a","#72d9b0"], actin: ["#272118","#ffb46e"] };
 const bySymbol = Object.fromEntries(elements.map((e) => [e.symbol, e]));
 
@@ -29,6 +37,7 @@ let isPlaying = false;
 let autoSpin = true;
 let speedIndex = 1;
 let playbackSnapshot = null;
+let modelLoadId = 0;
 const speeds = [.5, 1, 1.5, 2, 3];
 
 function periodicTable() {
@@ -53,15 +62,21 @@ function formatConfiguration(config = "") {
   return config.replace(/(\d)([spdf])(\d+)/g, "$1$2<sup>$3</sup>");
 }
 
+function expandConfiguration(config = "") {
+  return config.replace(/\[([A-Z][a-z]?)\]/, (_, core) => nobleGasCoreConfigurations[core] || "");
+}
+
 async function loadData() {
   const response = await fetch("distributions.json");
   if (!response.ok) throw new Error(`Unable to load electron configurations (${response.status})`);
   elementConfigs = await response.json();
 }
 
-function selectElement(symbol) {
+function selectElement(symbol, collapseTable = true) {
   stopPlayback();
+  clearOrbitalModels();
   selected = bySymbol[symbol];
+  if (collapseTable) els("workspace").classList.remove("table-expanded");
   document.querySelectorAll(".element-tile").forEach((tile) => tile.classList.toggle("active", tile.dataset.symbol === symbol));
   els("selected-number").textContent = selected.number;
   els("selected-symbol").textContent = selected.symbol;
@@ -69,16 +84,23 @@ function selectElement(symbol) {
   els("selected-mass").textContent = `${selected.mass} u`;
   els("stage-title").innerHTML = `${selected.name} <span>/</span> ${selected.symbol}`;
   els("electron-count").textContent = `${String(selected.number).padStart(2, "0")} electrons`;
-  els("configuration").innerHTML = formatConfiguration(elementConfigs[selected.symbol] || "configuration unavailable");
+  els("configuration").innerHTML = formatConfiguration(expandConfiguration(elementConfigs[selected.symbol] || "configuration unavailable"));
   buildOrbitalList();
   drawPes();
   loadModels();
-  els("element-panel").classList.remove("expanded");
 }
 
 function configOrbitals() {
-  const config = elementConfigs[selected.symbol] || "";
+  const config = expandConfiguration(elementConfigs[selected.symbol] || "");
   return [...config.matchAll(/(\d)([spdf])(\d+)/g)].filter((match) => Number(match[3]) > 0).map((match) => ({ n: Number(match[1]), type: match[2], count: Number(match[3]) }));
+}
+
+function clearOrbitalModels() {
+  modelLoadId += 1;
+  orbitalObjects.forEach((object) => scene?.remove(object));
+  orbitalObjects.clear();
+  updateOrbitalCount();
+  els("loading-state").classList.remove("ready");
 }
 
 function buildOrbitalList() {
@@ -155,14 +177,18 @@ function initThree() {
   animate();
 }
 
-function createOrbitalMaterial() {
-  return new THREE.MeshPhysicalMaterial({ color: 0x55aaff, emissive: 0x0c263e, emissiveIntensity: .55, transparent: true, opacity, roughness: .22, metalness: .1, side: THREE.DoubleSide, depthWrite: false });
+function preserveOrbitalMaterial(material) {
+  const preserved = material.clone();
+  preserved.transparent = true;
+  preserved.opacity = opacity;
+  preserved.depthWrite = false;
+  preserved.side = THREE.DoubleSide;
+  return preserved;
 }
 
 async function loadModels() {
   if (!scene) return;
-  [...orbitalObjects.values()].forEach((object) => scene.remove(object));
-  orbitalObjects.clear();
+  const loadId = modelLoadId;
   const loader = new GLTFLoader();
   const promises = [];
   configOrbitals().forEach(({ n, type }) => {
@@ -170,15 +196,21 @@ async function loadModels() {
       const key = `${n}-${file}`;
       const promise = new Promise((resolve) => loader.load(`orbital_glbs/${file}.glb`, (gltf) => {
         const model = gltf.scene;
+        if (loadId !== modelLoadId) { resolve(); return; }
         const scale = Math.pow(1.75, n - 1) * .8;
         model.scale.setScalar(scale);
-        model.traverse((child) => { if (child.isMesh) { child.material = createOrbitalMaterial(); } });
+        model.traverse((child) => {
+          if (child.isMesh) {
+            child.material = Array.isArray(child.material) ? child.material.map(preserveOrbitalMaterial) : preserveOrbitalMaterial(child.material);
+          }
+        });
         model.visible = true; scene.add(model); orbitalObjects.set(key, model); resolve();
       }, undefined, () => resolve()));
       promises.push(promise);
     });
   });
   await Promise.all(promises);
+  if (loadId !== modelLoadId) return;
   updateOrbitalButtons();
   els("loading-state").classList.add("ready");
 }
@@ -186,6 +218,21 @@ async function loadModels() {
 function drawPes() {
   const chart = els("pes-chart");
   chart.querySelectorAll(".pes-bar").forEach((bar) => bar.remove());
+  chart.querySelectorAll(".chart-y-tick, .chart-x-tick").forEach((tick) => tick.remove());
+  [100, 75, 50, 25, 0].forEach((value, index) => {
+    const tick = document.createElement("span");
+    tick.className = "chart-y-tick";
+    tick.style.bottom = `${index * 25}%`;
+    tick.textContent = value;
+    chart.appendChild(tick);
+  });
+  [100, 80, 60, 40, 20, 0].forEach((value, index, values) => {
+    const tick = document.createElement("span");
+    tick.className = "chart-x-tick";
+    tick.style.left = `${(index / (values.length - 1)) * 100}%`;
+    tick.textContent = value;
+    chart.appendChild(tick);
+  });
   const orbitals = configOrbitals();
   const total = Math.max(orbitals.length, 1);
   orbitals.forEach((orbital, index) => {
@@ -248,9 +295,9 @@ function playAnimation() {
   reveal();
 }
 
-els("collapse-table").addEventListener("click", () => els("element-panel").classList.remove("expanded"));
-els("selected-element").addEventListener("click", () => els("element-panel").classList.toggle("expanded"));
-els("selected-element").addEventListener("keydown", (event) => { if (event.key === "Enter" || event.key === " ") els("element-panel").classList.toggle("expanded"); });
+els("collapse-table").addEventListener("click", () => els("workspace").classList.remove("table-expanded"));
+els("selected-element").addEventListener("click", () => els("workspace").classList.toggle("table-expanded"));
+els("selected-element").addEventListener("keydown", (event) => { if (event.key === "Enter" || event.key === " ") els("workspace").classList.toggle("table-expanded"); });
 els("show-all").addEventListener("click", () => { orbitalObjects.forEach((object) => { object.visible = true; }); updateOrbitalButtons(); });
 els("hide-all").addEventListener("click", () => { orbitalObjects.forEach((object) => { object.visible = false; }); updateOrbitalButtons(); });
 els("opacity-slider").addEventListener("input", (event) => {
@@ -264,6 +311,6 @@ els("reset-camera").addEventListener("click", () => { camera.position.set(7, 5, 
 
 periodicTable();
 initThree();
-loadData().then(() => selectElement("C")).catch((error) => {
+loadData().then(() => selectElement("C", false)).catch((error) => {
   els("loading-state").textContent = error.message;
 });
