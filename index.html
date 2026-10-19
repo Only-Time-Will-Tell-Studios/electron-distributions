@@ -27,11 +27,17 @@
             <div class="eyebrow">Element index</div>
             <button class="icon-button" id="collapse-table" type="button" aria-label="Collapse periodic table">←</button>
           </div>
+          <div class="element-navigation" aria-label="Change element">
+            <button class="icon-button" id="previous-element" type="button" aria-label="Previous element">↑</button>
+          </div>
           <div class="selected-element" id="selected-element" role="button" tabindex="0" aria-label="Expand periodic table">
             <span class="selected-number" id="selected-number">6</span>
             <strong id="selected-symbol">C</strong>
             <span id="selected-name">Carbon</span>
             <small id="selected-mass">12.011 u</small>
+          </div>
+          <div class="element-navigation">
+            <button class="icon-button" id="next-element" type="button" aria-label="Next element">↓</button>
           </div>
           <div class="table-wrap" id="table-wrap">
             <div class="table-legend">
@@ -103,10 +109,10 @@
               <div class="eyebrow">Photoelectron spectroscopy</div>
               <h2>Energy distribution</h2>
             </div>
-            <div class="pes-legend"><span><i class="legend-line blue"></i>Binding energy</span><span><i class="legend-line orange"></i>Relative intensity</span></div>
+            <div class="pes-legend"><span><i class="legend-line blue"></i>Binding energy</span><span><i class="legend-line orange"></i>Subshell electrons</span></div>
           </div>
           <div class="pes-chart" id="pes-chart">
-            <div class="chart-y-label">INTENSITY</div>
+            <div class="chart-y-label">ELECTRONS / SUBSHELL</div>
             <div class="chart-x-label">BINDING ENERGY (eV) · decreasing →</div>
           </div>
         </section>

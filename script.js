@@ -95,6 +95,30 @@ function configOrbitals() {
   return [...config.matchAll(/(\d)([spdf])(\d+)/g)].filter((match) => Number(match[3]) > 0).map((match) => ({ n: Number(match[1]), type: match[2], count: Number(match[3]) }));
 }
 
+function subshellsForSlater() {
+  return [...expandConfiguration(elementConfigs[selected.symbol] || "").matchAll(/(\d)([spdf])(\d+)/g)].map((match) => ({
+    n: Number(match[1]),
+    type: match[2],
+    count: Number(match[3])
+  }));
+}
+
+function bindingEnergyForSubshell(target) {
+  const occupied = subshellsForSlater();
+  const targetIsSP = target.type === "s" || target.type === "p";
+  let shielding = 0;
+  occupied.forEach((subshell) => {
+    const isTarget = subshell.n === target.n && subshell.type === target.type;
+    if (isTarget) shielding += (target.n === 1 ? 0.3 : 0.35) * Math.max(subshell.count - 1, 0);
+    else if (targetIsSP && subshell.n === target.n) shielding += subshell.count;
+    else if (targetIsSP && subshell.n === target.n - 1 && (subshell.type === "s" || subshell.type === "p")) shielding += 0.85 * subshell.count;
+    else if (targetIsSP && subshell.n < target.n - 1) shielding += subshell.count;
+    else if (!targetIsSP && (subshell.n < target.n || (subshell.n === target.n && subshell.type !== target.type))) shielding += subshell.count;
+  });
+  const zeff = Math.max(selected.number - shielding, 1);
+  return 13.6 * (zeff ** 2) / (target.n ** 2);
+}
+
 function clearOrbitalModels() {
   modelLoadId += 1;
   orbitalObjects.forEach((object) => scene?.remove(object));
@@ -165,6 +189,11 @@ function initThree() {
   controls = new OrbitControls(camera, renderer.domElement);
   controls.enableDamping = true; controls.dampingFactor = .06; controls.target.set(0, 0, 0);
   controls.mouseButtons.LEFT = THREE.MOUSE.ROTATE; controls.mouseButtons.MIDDLE = THREE.MOUSE.PAN;
+  renderer.domElement.addEventListener("wheel", (event) => event.preventDefault(), { passive: false });
+  renderer.domElement.addEventListener("mousedown", (event) => {
+    if (event.button === 1) event.preventDefault();
+  });
+  renderer.domElement.addEventListener("contextmenu", (event) => event.preventDefault());
   const ambient = new THREE.AmbientLight(0x9ecbff, 1.8); scene.add(ambient);
   const point = new THREE.PointLight(0xff9a55, 20, 30); point.position.set(3, 4, 5); scene.add(point);
   const axes = new THREE.AxesHelper(5); axes.material.transparent = true; axes.material.opacity = .32; scene.add(axes);
@@ -219,35 +248,49 @@ function drawPes() {
   const chart = els("pes-chart");
   chart.querySelectorAll(".pes-bar").forEach((bar) => bar.remove());
   chart.querySelectorAll(".chart-y-tick, .chart-x-tick").forEach((tick) => tick.remove());
-  [100, 75, 50, 25, 0].forEach((value, index) => {
+  const orbitals = configOrbitals().map((orbital) => ({ ...orbital, bindingEnergy: bindingEnergyForSubshell(orbital) }));
+  const maxElectrons = Math.max(...orbitals.map((orbital) => orbital.count), 1);
+  [maxElectrons, Math.round(maxElectrons * .75), Math.round(maxElectrons * .5), Math.round(maxElectrons * .25), 0].forEach((value, index) => {
     const tick = document.createElement("span");
     tick.className = "chart-y-tick";
     tick.style.bottom = `${index * 25}%`;
     tick.textContent = value;
     chart.appendChild(tick);
   });
-  [100, 80, 60, 40, 20, 0].forEach((value, index, values) => {
+  const maxBindingEnergy = Math.max(...orbitals.map((orbital) => orbital.bindingEnergy), 1);
+  [maxBindingEnergy, maxBindingEnergy * .8, maxBindingEnergy * .6, maxBindingEnergy * .4, maxBindingEnergy * .2, 0].forEach((value, index, values) => {
     const tick = document.createElement("span");
     tick.className = "chart-x-tick";
     tick.style.left = `${(index / (values.length - 1)) * 100}%`;
-    tick.textContent = value;
+    tick.textContent = `${Math.round(value)} eV`;
     chart.appendChild(tick);
   });
-  const orbitals = configOrbitals();
-  const total = Math.max(orbitals.length, 1);
   orbitals.forEach((orbital, index) => {
     const bar = document.createElement("i");
     bar.className = "pes-bar";
-    bar.style.left = `${12 + (index / total) * 78}%`;
-    bar.style.height = `${28 + Math.min(orbital.n * 8 + orbital.count * 5, 104)}px`;
+    bar.style.left = `${5 + (orbital.bindingEnergy / maxBindingEnergy) * 90}%`;
+    bar.style.height = `${Math.max(8, (orbital.count / maxElectrons) * 100)}%`;
     bar.style.animationDelay = `${index * .06}s`;
+    bar.title = `${orbital.n}${orbital.type}: ${orbital.count} electrons, estimated ${orbital.bindingEnergy.toFixed(1)} eV`;
+    const label = document.createElement("span");
+    label.className = "pes-peak-label";
+    label.textContent = `${orbital.n}${orbital.type}`;
+    bar.appendChild(label);
     chart.appendChild(bar);
   });
 }
 
+let cameraOrbitAngle = 0;
 function animate() {
   animationFrame = requestAnimationFrame(animate);
-  if (autoSpin && !isPlaying) scene?.rotation && (scene.rotation.y += .0015);
+  if (autoSpin && camera && controls) {
+    cameraOrbitAngle += .006;
+    const offset = camera.position.clone().sub(controls.target);
+    const radius = Math.hypot(offset.x, offset.z);
+    camera.position.x = controls.target.x + Math.cos(cameraOrbitAngle) * radius;
+    camera.position.z = controls.target.z + Math.sin(cameraOrbitAngle) * radius;
+    camera.lookAt(controls.target);
+  }
   controls?.update();
   if (renderer && scene && camera) renderer.render(scene, camera);
 }
@@ -256,39 +299,53 @@ function stopPlayback() {
   if (!isPlaying) return;
   isPlaying = false; controls.enabled = true; nucleus.scale.setScalar(1);
   if (playbackSnapshot) {
-    playbackSnapshot.forEach(({ visible, scale }, key) => {
+    playbackSnapshot.forEach(({ visible, scale, position }, key) => {
       const object = orbitalObjects.get(key);
-      if (object) { object.visible = visible; object.scale.copy(scale); }
+      if (object) { object.visible = visible; object.scale.copy(scale); object.position.copy(position); }
     });
     playbackSnapshot = null;
     updateOrbitalButtons();
   }
   els("play-toggle").innerHTML = "▶ <span>Play</span>";
+  els("workspace").classList.remove("playback-active");
 }
 
 function playAnimation() {
   if (isPlaying) { stopPlayback(); return; }
-  isPlaying = true; controls.enabled = false; els("play-toggle").innerHTML = "■ <span>Stop</span>";
-  playbackSnapshot = new Map([...orbitalObjects].map(([key, object]) => [key, { visible: object.visible, scale: object.scale.clone() }]));
+  isPlaying = true; controls.enabled = false; els("play-toggle").innerHTML = "■ <span>Stop</span>"; els("workspace").classList.add("playback-active");
+  playbackSnapshot = new Map([...orbitalObjects].map(([key, object]) => [key, { visible: object.visible, scale: object.scale.clone(), position: object.position.clone() }]));
   const saved = new Map([...playbackSnapshot].map(([key, state]) => [key, state.visible]));
   orbitalObjects.forEach((object) => { object.visible = false; object.position.set(0, 0, 0); });
   let index = 0;
-  const sequence = [...orbitalObjects.entries()].sort(([a], [b]) => Number(a) - Number(b));
+  const orbitalOrder = { s: 0, p: 1, d: 2, f: 3 };
+  const sequence = [...orbitalObjects.entries()].sort(([a], [b]) => {
+    const [aN, aFile] = a.split("-");
+    const [bN, bFile] = b.split("-");
+    const aType = Object.entries(orbitalFiles).find(([, files]) => files.includes(aFile))?.[0] || "s";
+    const bType = Object.entries(orbitalFiles).find(([, files]) => files.includes(bFile))?.[0] || "s";
+    return Number(aN) - Number(bN) || orbitalOrder[aType] - orbitalOrder[bType];
+  });
   const reveal = () => {
     if (!isPlaying || index >= sequence.length) {
-      if (isPlaying) { isPlaying = false; controls.enabled = true; playbackSnapshot = null; els("play-toggle").innerHTML = "▶ <span>Play</span>"; }
+      if (isPlaying) { isPlaying = false; controls.enabled = true; playbackSnapshot = null; els("play-toggle").innerHTML = "▶ <span>Play</span>"; els("workspace").classList.remove("playback-active"); }
       updateOrbitalButtons(); return;
     }
     const [, object] = sequence[index];
     object.visible = saved.get(sequence[index][0]) ?? true;
-    object.scale.multiplyScalar(.001);
-    const target = object.scale.x / .001;
+    const target = playbackSnapshot.get(sequence[index][0]).scale.x;
+    const targetPosition = object.position.clone();
+    const spawnPosition = new THREE.Vector3(3.6, 1.5 + (index % 3) * .45, 0);
+    object.position.copy(spawnPosition);
+    object.scale.setScalar(target * .01);
     const start = performance.now();
     const grow = (now) => {
       if (!isPlaying) { object.scale.setScalar(target); return; }
-      const progress = Math.min((now - start) / (700 / speeds[speedIndex]), 1);
-      object.scale.setScalar(target * (0.001 + progress));
-      if (progress < 1) requestAnimationFrame(grow); else { index += 1; setTimeout(reveal, 120 / speeds[speedIndex]); }
+      const progress = Math.min((now - start) / (900 / speeds[speedIndex]), 1);
+      const growth = Math.min(progress / .55, 1);
+      const insertion = Math.max(0, (progress - .42) / .58);
+      object.scale.setScalar(target * (.01 + .99 * growth));
+      object.position.lerpVectors(spawnPosition, targetPosition, insertion);
+      if (progress < 1) requestAnimationFrame(grow); else { object.position.copy(targetPosition); index += 1; setTimeout(reveal, 150 / speeds[speedIndex]); }
     };
     requestAnimationFrame(grow);
   };
@@ -308,6 +365,14 @@ els("spin-toggle").addEventListener("click", (event) => { autoSpin = !autoSpin; 
 els("play-toggle").addEventListener("click", playAnimation);
 els("speed-toggle").addEventListener("click", (event) => { speedIndex = (speedIndex + 1) % speeds.length; event.currentTarget.textContent = `${speeds[speedIndex]}×`; });
 els("reset-camera").addEventListener("click", () => { camera.position.set(7, 5, 9); controls.target.set(0, 0, 0); controls.reset(); });
+const orderedElements = [...elements].sort((a, b) => a.number - b.number);
+function changeElementBy(delta) {
+  const index = orderedElements.findIndex((element) => element.symbol === selected.symbol);
+  const next = orderedElements[Math.max(0, Math.min(orderedElements.length - 1, index + delta))];
+  if (next) selectElement(next.symbol, false);
+}
+els("previous-element").addEventListener("click", () => changeElementBy(-1));
+els("next-element").addEventListener("click", () => changeElementBy(1));
 
 periodicTable();
 initThree();
