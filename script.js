@@ -250,11 +250,11 @@ function drawPes() {
   chart.querySelectorAll(".pes-bar").forEach((bar) => bar.remove());
   chart.querySelectorAll(".chart-y-tick, .chart-x-tick").forEach((tick) => tick.remove());
   const orbitals = configOrbitals().map((orbital) => ({ ...orbital, bindingEnergy: bindingEnergyForSubshell(orbital) }));
-  const maxElectrons = Math.max(...orbitals.map((orbital) => orbital.count), 1);
-  [0, Math.round(maxElectrons * .25), Math.round(maxElectrons * .5), Math.round(maxElectrons * .75), maxElectrons].forEach((value, index) => {
+  const fixedElectronScale = 14;
+  [0, 2, 4, 6, 8, 10, 12, fixedElectronScale].forEach((value, index) => {
     const tick = document.createElement("span");
     tick.className = "chart-y-tick";
-    tick.style.bottom = `${index * 25}%`;
+    tick.style.bottom = `${(index / 7) * 100}%`;
     tick.textContent = value;
     chart.appendChild(tick);
   });
@@ -279,7 +279,7 @@ function drawPes() {
     const bar = document.createElement("i");
     bar.className = "pes-bar";
     bar.style.left = `${20 + orbital.plotX}px`;
-    bar.style.height = `${Math.max(8, (orbital.count / maxElectrons) * 100)}%`;
+    bar.style.height = `${(orbital.count / fixedElectronScale) * 100}%`;
     bar.style.animationDelay = `${index * .06}s`;
     bar.title = `${orbital.n}${orbital.type}: ${orbital.count} electrons, estimated ${orbital.bindingEnergy.toFixed(1)} eV`;
     const label = document.createElement("span");
