@@ -21,18 +21,20 @@ button { cursor: pointer; }
 .app-shell { min-height: 100vh; display: flex; flex-direction: column; padding: 24px 28px 18px; background: radial-gradient(circle at 78% 4%, rgba(48, 91, 126, .12), transparent 29rem), var(--bg); }
 .workspace { display: grid; grid-template-columns: 188px minmax(0, 1fr); grid-template-rows: minmax(0, 1fr) auto; gap: 22px; flex: 1; min-height: 0; overflow: hidden; transition: grid-template-columns .75s cubic-bezier(.22, .8, .25, 1); }
 .workspace.table-expanded { grid-template-columns: minmax(560px, 1.1fr) minmax(390px, .9fr); }
-.workspace.table-expanded { grid-template-rows: auto auto; align-items: stretch; }
+.workspace.table-expanded { grid-template-rows: max-content auto; align-items: stretch; align-content: start; }
+.workspace.table-expanded .element-panel,
+.workspace.table-expanded .visual-stage { height: 885px; }
 .workspace:not(.table-expanded) .orbitals-panel { opacity: 1 !important; visibility: visible !important; pointer-events: auto; }
-.workspace.table-expanded .orbitals-panel { opacity: 0; visibility: hidden; pointer-events: none; }
+.workspace.table-expanded .orbitals-panel { position: absolute; width: 0; height: 0; overflow: hidden; opacity: 0; visibility: hidden; pointer-events: none; }
 .workspace.table-expanded .model-row { grid-template-columns: minmax(0, 1fr); }
-.workspace.table-expanded .visual-stage { display: flex; flex-direction: column; }
-.workspace.table-expanded .model-row { flex: 1; }
-.workspace.table-expanded .viewport-card { align-self: stretch; height: auto; }
-.workspace.table-expanded #viewport { height: 100%; min-height: 558px; }
+.workspace.table-expanded .visual-stage { position: relative; display: flex; flex-direction: column; min-height: 0; }
+.workspace.table-expanded .model-row { flex: 1; min-height: 0; }
+.workspace.table-expanded .viewport-card { align-self: start; height: 789px; min-height: 0; }
+.workspace.table-expanded #viewport { height: calc(100% - 34px); min-height: 558px; }
 .workspace > .pes-card { grid-column: 1 / -1; }
 .element-panel, .card { border: 1px solid var(--line); background: rgba(16, 21, 27, .88); }
 .element-panel { min-height: 0; padding: 22px; align-self: start; transition: padding .75s cubic-bezier(.22, .8, .25, 1); overflow: hidden; display: flex; flex-direction: column; }
-.workspace.table-expanded .element-panel { align-self: stretch; justify-content: flex-end; padding-bottom: 0; }
+.workspace.table-expanded .element-panel { align-self: stretch; justify-content: flex-start; padding-bottom: 0; }
 .workspace:not(.table-expanded) .element-panel { height: 100%; padding: 22px 14px; justify-content: center; position: relative; }
 .table-wrap { max-height: 1000px; opacity: 1; visibility: visible; overflow: hidden; transition: max-height .75s cubic-bezier(.22, .8, .25, 1), opacity .55s ease, visibility .55s ease; }
 .workspace:not(.table-expanded) .table-wrap { max-height: 0; opacity: 0; visibility: hidden; }
