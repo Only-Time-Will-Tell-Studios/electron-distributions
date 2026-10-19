@@ -38,6 +38,7 @@ let autoSpin = true;
 let speedIndex = 1;
 let playbackSnapshot = null;
 let modelLoadId = 0;
+let cameraDistanceTarget = 10;
 const speeds = [.5, 1, 1.5, 2, 3];
 
 function periodicTable() {
@@ -250,7 +251,7 @@ function drawPes() {
   chart.querySelectorAll(".chart-y-tick, .chart-x-tick").forEach((tick) => tick.remove());
   const orbitals = configOrbitals().map((orbital) => ({ ...orbital, bindingEnergy: bindingEnergyForSubshell(orbital) }));
   const maxElectrons = Math.max(...orbitals.map((orbital) => orbital.count), 1);
-  [maxElectrons, Math.round(maxElectrons * .75), Math.round(maxElectrons * .5), Math.round(maxElectrons * .25), 0].forEach((value, index) => {
+  [0, Math.round(maxElectrons * .25), Math.round(maxElectrons * .5), Math.round(maxElectrons * .75), maxElectrons].forEach((value, index) => {
     const tick = document.createElement("span");
     tick.className = "chart-y-tick";
     tick.style.bottom = `${index * 25}%`;
@@ -258,6 +259,15 @@ function drawPes() {
     chart.appendChild(tick);
   });
   const maxBindingEnergy = Math.max(...orbitals.map((orbital) => orbital.bindingEnergy), 1);
+  const basePlotWidth = Math.max(chart.parentElement.clientWidth - 56, 520);
+  const sortedByEnergy = [...orbitals].sort((a, b) => b.bindingEnergy - a.bindingEnergy);
+  let lastPeakX = -Infinity;
+  sortedByEnergy.forEach((orbital) => {
+    const naturalX = (1 - orbital.bindingEnergy / maxBindingEnergy) * (basePlotWidth - 40);
+    orbital.plotX = Math.max(naturalX, lastPeakX + 12);
+    lastPeakX = orbital.plotX;
+  });
+  chart.style.width = `${Math.max(basePlotWidth, lastPeakX + 50)}px`;
   [maxBindingEnergy, maxBindingEnergy * .8, maxBindingEnergy * .6, maxBindingEnergy * .4, maxBindingEnergy * .2, 0].forEach((value, index, values) => {
     const tick = document.createElement("span");
     tick.className = "chart-x-tick";
@@ -268,7 +278,7 @@ function drawPes() {
   orbitals.forEach((orbital, index) => {
     const bar = document.createElement("i");
     bar.className = "pes-bar";
-    bar.style.left = `${5 + (orbital.bindingEnergy / maxBindingEnergy) * 90}%`;
+    bar.style.left = `${20 + orbital.plotX}px`;
     bar.style.height = `${Math.max(8, (orbital.count / maxElectrons) * 100)}%`;
     bar.style.animationDelay = `${index * .06}s`;
     bar.title = `${orbital.n}${orbital.type}: ${orbital.count} electrons, estimated ${orbital.bindingEnergy.toFixed(1)} eV`;
@@ -286,7 +296,7 @@ function animate() {
   if (autoSpin && camera && controls) {
     cameraOrbitAngle += .006;
     const offset = camera.position.clone().sub(controls.target);
-    const radius = Math.hypot(offset.x, offset.z);
+    const radius = THREE.MathUtils.lerp(Math.hypot(offset.x, offset.z), cameraDistanceTarget, .035);
     camera.position.x = controls.target.x + Math.cos(cameraOrbitAngle) * radius;
     camera.position.z = controls.target.z + Math.sin(cameraOrbitAngle) * radius;
     camera.lookAt(controls.target);
@@ -318,12 +328,13 @@ function playAnimation() {
   orbitalObjects.forEach((object) => { object.visible = false; object.position.set(0, 0, 0); });
   let index = 0;
   const orbitalOrder = { s: 0, p: 1, d: 2, f: 3 };
+  const orbitalType = Object.fromEntries(Object.entries(orbitalFiles).flatMap(([type, files]) => files.map((file, fileIndex) => [file, { type, fileIndex }])));
   const sequence = [...orbitalObjects.entries()].sort(([a], [b]) => {
     const [aN, aFile] = a.split("-");
     const [bN, bFile] = b.split("-");
-    const aType = Object.entries(orbitalFiles).find(([, files]) => files.includes(aFile))?.[0] || "s";
-    const bType = Object.entries(orbitalFiles).find(([, files]) => files.includes(bFile))?.[0] || "s";
-    return Number(aN) - Number(bN) || orbitalOrder[aType] - orbitalOrder[bType];
+    const aOrbital = orbitalType[aFile] || { type: "s", fileIndex: 0 };
+    const bOrbital = orbitalType[bFile] || { type: "s", fileIndex: 0 };
+    return Number(aN) - Number(bN) || orbitalOrder[aOrbital.type] - orbitalOrder[bOrbital.type] || aOrbital.fileIndex - bOrbital.fileIndex;
   });
   const reveal = () => {
     if (!isPlaying || index >= sequence.length) {
@@ -334,7 +345,10 @@ function playAnimation() {
     object.visible = saved.get(sequence[index][0]) ?? true;
     const target = playbackSnapshot.get(sequence[index][0]).scale.x;
     const targetPosition = object.position.clone();
-    const spawnPosition = new THREE.Vector3(3.6, 1.5 + (index % 3) * .45, 0);
+    const n = Number(sequence[index][0].split("-")[0]);
+    const spawnDistance = 3.5 + n * 2.2;
+    const spawnPosition = new THREE.Vector3(spawnDistance, 1.5 + (index % 3) * .45, 0);
+    cameraDistanceTarget = Math.max(cameraDistanceTarget, 8 + n * 3.2);
     object.position.copy(spawnPosition);
     object.scale.setScalar(target * .01);
     const start = performance.now();
