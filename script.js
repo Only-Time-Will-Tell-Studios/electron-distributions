@@ -42,9 +42,9 @@ let cameraDistanceTarget = 10;
 const speeds = [.5, 1, 1.5, 2, 3];
 const subshellScale = {
   s: 1,
-  p: 1.08,
-  d: 1.2,
-  f: 1.2
+  p: 1.15,
+  d: 1.75,
+  f: 3.0625
 };
 
 function periodicTable() {
