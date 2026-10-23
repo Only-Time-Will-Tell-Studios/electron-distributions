@@ -38,7 +38,7 @@ button { cursor: pointer; }
 .workspace:not(.table-expanded) .element-panel { height: 100%; padding: 22px 14px; justify-content: center; position: relative; }
 .table-wrap { max-height: 1000px; opacity: 1; visibility: visible; overflow: hidden; transition: max-height .75s cubic-bezier(.22, .8, .25, 1), opacity .55s ease, visibility .55s ease; }
 .workspace:not(.table-expanded) .table-wrap { max-height: 0; opacity: 0; visibility: hidden; }
-.workspace:not(.table-expanded) .panel-head .icon-button { opacity: 0; pointer-events: none; }
+/*.workspace:not(.table-expanded) .panel-head .icon-button#toggle-table { opacity: 0; pointer-events: none; }*/
 .workspace:not(.table-expanded) .selected-element { margin: 8px 0; }
 .workspace:not(.table-expanded) .element-navigation { display: flex; }
 .workspace.table-expanded .element-navigation { display: none; }

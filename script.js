@@ -77,7 +77,7 @@ function selectElement(symbol, collapseTable = true) {
   stopPlayback();
   clearOrbitalModels();
   selected = bySymbol[symbol];
-  if (collapseTable) els("workspace").classList.remove("table-expanded");
+  if (collapseTable) toggleTable();
   document.querySelectorAll(".element-tile").forEach((tile) => tile.classList.toggle("active", tile.dataset.symbol === symbol));
   els("selected-number").textContent = selected.number;
   els("selected-symbol").textContent = selected.symbol;
@@ -322,7 +322,9 @@ function stopPlayback() {
 
 function playAnimation() {
   if (isPlaying) { stopPlayback(); return; }
-  isPlaying = true; controls.enabled = false; els("play-toggle").innerHTML = "■ <span>Stop</span>"; els("workspace").classList.add("playback-active");
+  isPlaying = true; controls.enabled = false;
+  els("play-toggle").innerHTML = "■ <span>Stop</span>";
+  els("workspace").classList.add("playback-active");
   playbackSnapshot = new Map([...orbitalObjects].map(([key, object]) => [key, { visible: object.visible, scale: object.scale.clone(), position: object.position.clone() }]));
   const saved = new Map([...playbackSnapshot].map(([key, state]) => [key, state.visible]));
   orbitalObjects.forEach((object) => { object.visible = false; object.position.set(0, 0, 0); });
@@ -366,9 +368,13 @@ function playAnimation() {
   reveal();
 }
 
-els("collapse-table").addEventListener("click", () => els("workspace").classList.remove("table-expanded"));
-els("selected-element").addEventListener("click", () => els("workspace").classList.toggle("table-expanded"));
-els("selected-element").addEventListener("keydown", (event) => { if (event.key === "Enter" || event.key === " ") els("workspace").classList.toggle("table-expanded"); });
+function toggleTable() {
+  els("workspace").classList.toggle("table-expanded");
+  els("toggle-table").innerHTML = els("workspace").classList.contains("table-expanded") ? "←" : "→";
+}
+els("toggle-table").addEventListener("click", () => toggleTable());
+els("selected-element").addEventListener("click", () => toggleTable());
+els("selected-element").addEventListener("keydown", (event) => { if (event.key === "Enter" || event.key === " ") toggleTable(); });
 els("show-all").addEventListener("click", () => { orbitalObjects.forEach((object) => { object.visible = true; }); updateOrbitalButtons(); });
 els("hide-all").addEventListener("click", () => { orbitalObjects.forEach((object) => { object.visible = false; }); updateOrbitalButtons(); });
 els("opacity-slider").addEventListener("input", (event) => {
