@@ -40,6 +40,12 @@ let playbackSnapshot = null;
 let modelLoadId = 0;
 let cameraDistanceTarget = 10;
 const speeds = [.5, 1, 1.5, 2, 3];
+const subshellScale = {
+  s: 1,
+  p: 1.5,
+  d: 3.0625,
+  f: 5.359375
+};
 
 function periodicTable() {
   const table = els("periodic-table");
@@ -227,7 +233,7 @@ async function loadModels() {
       const promise = new Promise((resolve) => loader.load(`orbital_glbs/${file}.glb`, (gltf) => {
         const model = gltf.scene;
         if (loadId !== modelLoadId) { resolve(); return; }
-        const scale = Math.pow(1.75, n - 1) * .8;
+        const scale = Math.pow(1.75, n - 1) * .8  * (subshellScale[type] ?? 1);
         model.scale.setScalar(scale);
         model.traverse((child) => {
           if (child.isMesh) {
